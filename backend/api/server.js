@@ -305,7 +305,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
@@ -313,6 +312,16 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Vercel Serverless requires we listen on a port, but also export the app
+const PORT = process.env.PORT || 3001;
+
+// Only start listening if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 // Export for Vercel
 module.exports = app;
