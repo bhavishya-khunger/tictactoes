@@ -1,65 +1,63 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
 
 const app = express();
-
-// Enhanced CORS configuration
 app.use(cors({
   origin: [
     "https://tictactoes-chi.vercel.app",
-    "http://localhost:3000", // for local development
+    "http://localhost:3000",
+    "http://localhost:5173"
   ],
   credentials: true
 }));
 
-// Create HTTP server
 const server = http.createServer(app);
-
-// Socket.io configuration with additional options
 const io = new Server(server, {
   cors: {
     origin: [
       "https://tictactoes-chi.vercel.app",
       "http://localhost:3000",
+      "http://localhost:5173"
     ],
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true // For Socket.io v4 compatibility with some clients
+  transports: ['websocket', 'polling']
 });
 
-// Your existing game logic remains the same
 const gameRooms = {};
 
+// Helper function to check for a winner
 function calculateWinner(squares) {
   const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+    [0, 4, 8], [2, 4, 6]           // Diagonals
   ];
 
   for (let i = 0; i < lines.length; i++) {
     const [a, b, c] = lines[i];
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
+      return squares[a]; // Returns 'X' or 'O'
     }
   }
 
   if (squares.every(square => square !== null)) {
-    return 'Draw';
+    return 'Draw'; // All squares filled, no winner
   }
 
-  return null;
+  return null; // No winner yet
 }
 
+// Helper function to generate room ID
 function generateRoomId() {
   let roomId;
   do {
     roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-  } while (gameRooms[roomId]);
+  } while (gameRooms[roomId]); // Ensure unique room ID
   return roomId;
 }
 
@@ -125,7 +123,13 @@ io.on('connection', (socket) => {
       socket.join(upperRoomId);
 
       // Join as Player 2
-      room.players.push({ id: socket.id, name: name.trim(), avatar: avatar, symbol: 'O' });
+      room.players.push({ 
+        id: socket.id, 
+        name: name.trim(), 
+        avatar: avatar, 
+        symbol: 'O' 
+      });
+      
       socket.emit('player-joined', room);
       console.log(`Player 2 ${name} joined room ${upperRoomId}`);
 
@@ -188,6 +192,7 @@ io.on('connection', (socket) => {
         winner: winner,
         score: room.score,
       };
+      
       io.to(roomId).emit('game-update', gameUpdate);
 
     } catch (error) {
@@ -234,7 +239,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- 6. Handle Disconnect ---
+  // --- 6. Reset Game ---
+  socket.on('reset-game', (roomId) => {
+    try {
+      const room = gameRooms[roomId];
+      if (!room) return socket.emit('error', 'Room not found');
+      if (room.hostId !== socket.id) return socket.emit('error', 'Only the host can reset');
+
+      room.board = Array(9).fill(null);
+      room.currentPlayer = 'X';
+      room.winner = null;
+      room.rematchVotes = [];
+      room.score = { X: 0, O: 0 };
+
+      io.to(roomId).emit('game-reset', room);
+      console.log(`Game reset in room ${roomId}`);
+    } catch (error) {
+      console.error('Error resetting game:', error);
+      socket.emit('error', 'Failed to reset game');
+    }
+  });
+
+  // --- 7. Handle Disconnect ---
   socket.on('disconnect', () => {
     console.log(`User Disconnected: ${socket.id}`);
 
@@ -297,21 +323,33 @@ io.on('connection', (socket) => {
     }
   });
 
-  // --- 7. Leave Room (explicit leave) ---
+  // --- 8. Leave Room (explicit leave) ---
   socket.on('leave-room', (roomId) => {
     const room = gameRooms[roomId];
     if (room) {
       socket.leave(roomId);
+      console.log(`User ${socket.id} left room ${roomId}`);
+    }
+  });
+
+  // --- 9. Get Room Info ---
+  socket.on('get-room-info', (roomId) => {
+    const room = gameRooms[roomId];
+    if (room) {
+      socket.emit('room-info', room);
+    } else {
+      socket.emit('error', 'Room not found');
     }
   });
 });
 
-// Health check endpoint
+// Routes
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Tic Tac Toe Server is running',
+    message: 'Tic Tac Toe Server is running on Render',
+    status: 'active',
     timestamp: new Date().toISOString(),
-    rooms: Object.keys(gameRooms).length
+    totalRooms: Object.keys(gameRooms).length
   });
 });
 
@@ -319,21 +357,41 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     rooms: Object.keys(gameRooms).length,
+    activeConnections: io.engine.clientsCount,
     timestamp: new Date().toISOString()
   });
 });
 
-// Socket.io endpoint for health check
-app.get('/socket.io/', (req, res) => {
-  res.json({ status: 'Socket.io server is running' });
+app.get('/rooms', (req, res) => {
+  const roomsInfo = Object.keys(gameRooms).map(roomId => ({
+    roomId: roomId,
+    players: gameRooms[roomId].players.length,
+    status: gameRooms[roomId].status,
+    createdAt: gameRooms[roomId].createdAt
+  }));
+  
+  res.json({
+    totalRooms: Object.keys(gameRooms).length,
+    rooms: roomsInfo
+  });
 });
 
-// Export the server for Vercel
-module.exports = (req, res) => {
-  // Route WebSocket upgrade requests to the server
-  if (req.headers?.upgrade === 'websocket') {
-    server.emit('request', req, res);
-  } else {
-    app(req, res);
-  }
-};
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🚀 Tic Tac Toe Server running on port ${PORT}`);
+  console.log(`📍 Health check: http://localhost:${PORT}/health`);
+  console.log(`📍 Rooms info: http://localhost:${PORT}/rooms`);
+});
+
+module.exports = server;
