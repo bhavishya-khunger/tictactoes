@@ -8,7 +8,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import Lobby from './components/Lobby';
 
 // Initialize socket
-const socket = io('http://localhost:3001');
+const socket = io('https://tictactoes-server.vercel.app/');
 
 function App() {
   const [user, setUser] = useState(null); // { id, name, avatar }
