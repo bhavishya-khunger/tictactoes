@@ -1,12 +1,15 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/server.js" }
+  ],
   "headers": [
     {
       "source": "/socket.io/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "https://tictactoes-chi.vercel.app" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" },
-        { "key": "Access-Control-Allow-Credentials", "value": "true" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
       ]
     }
   ]
