@@ -5,15 +5,23 @@ const { Server } = require("socket.io");
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "https://tictactoes-chi.vercel.app",
+  credentials: true
+}));
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://tictactoes-chi.vercel.app", 
-    methods: ["GET", "POST"]
-  }
+    origin: "https://tictactoes-chi.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  // Additional configuration for Vercel
+  transports: ['websocket', 'polling']
 });
 
+// In-memory storage (for demo - consider Redis for production)
 const gameRooms = {};
 
 // Helper function to check for a winner
@@ -166,14 +174,13 @@ io.on('connection', (socket) => {
         }
       }
 
-      // In server.js 'make-move' handler
       const gameUpdate = {
         board: room.board,
         currentPlayer: room.currentPlayer,
         winner: winner,
         score: room.score,
       };
-      io.to(roomId).emit('game-update', gameUpdate); // <-- Sends only this partial object
+      io.to(roomId).emit('game-update', gameUpdate);
 
     } catch (error) {
       console.error('Error making move:', error);
@@ -287,18 +294,25 @@ io.on('connection', (socket) => {
     const room = gameRooms[roomId];
     if (room) {
       socket.leave(roomId);
-      // The disconnect handler will handle the cleanup
     }
   });
 });
 
 app.get('/', (req, res) => {
-  res.send('Server is running.');
+  res.json({ 
+    message: 'Tic Tac Toe Server is running',
+    timestamp: new Date().toISOString()
+  });
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    rooms: Object.keys(gameRooms).length,
+    timestamp: new Date().toISOString()
+  });
 });
 
-module.exports = server;
+// Export for Vercel
+module.exports = app;
