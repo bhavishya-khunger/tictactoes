@@ -8,7 +8,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import Lobby from './components/Lobby';
 
 // Initialize socket
-const socket = io('https://tictactoes-server.vercel.app', { transports: ['polling'] });
+const socket = io('https://tictactoes-aq8j.onrender.com', { transports: ['polling'] });
 
 function App() {
   const [user, setUser] = useState(null); // { id, name, avatar }
