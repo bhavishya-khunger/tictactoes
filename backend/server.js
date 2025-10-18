@@ -9,7 +9,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://tictactoes-chi.vercel.app/", 
+    origin: "https://tictactoes-chi.vercel.app", 
     methods: ["GET", "POST"]
   }
 });
