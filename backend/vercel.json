@@ -8,9 +8,9 @@
       "source": "/socket.io/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "https://tictactoes-chi.vercel.app" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST" }
       ]
     }
   ]
 }
+
