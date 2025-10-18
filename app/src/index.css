@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+@theme {
+    /* New color palette based on your reference image */
+    --color-brand-bg: #1a1033; /* Deep purple background */
+    --color-brand-surface: #2c1e4a; /* Lighter purple for cards and board */
+    --color-brand-primary: #f3b236; /* Vibrant Gold */
+    --color-brand-primary-hover: #d89e2e; /* Darker Gold for hover */
+
+    --color-brand-x: #f3b236; /* Gold for X */
+    --color-brand-o: #e0e0ff; /* Light lavender/white for O */
+
+    --color-brand-light-text: #dcd3f3; /* Light purple text */
+}
+
+.animate-turn-glow {
+    animation: turn-glow 2.5s infinite ease-in-out;
+}
+
