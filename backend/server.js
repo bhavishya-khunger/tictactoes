@@ -357,7 +357,6 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     rooms: Object.keys(gameRooms).length,
-    activeConnections: io.engine.clientsCount,
     timestamp: new Date().toISOString()
   });
 });
@@ -376,14 +375,8 @@ app.get('/rooms', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
+// FIXED: Proper 404 handler - removed the problematic '*' route
+app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
@@ -393,5 +386,3 @@ server.listen(PORT, () => {
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📍 Rooms info: http://localhost:${PORT}/rooms`);
 });
-
-module.exports = server;
