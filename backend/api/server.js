@@ -1,57 +1,65 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
 
 const app = express();
+
+// Enhanced CORS configuration
 app.use(cors({
-  origin: "https://tictactoes-chi.vercel.app",
+  origin: [
+    "https://tictactoes-chi.vercel.app",
+    "http://localhost:3000", // for local development
+  ],
   credentials: true
 }));
 
+// Create HTTP server
 const server = http.createServer(app);
+
+// Socket.io configuration with additional options
 const io = new Server(server, {
   cors: {
-    origin: "https://tictactoes-chi.vercel.app",
+    origin: [
+      "https://tictactoes-chi.vercel.app",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST"],
     credentials: true
   },
-  // Additional configuration for Vercel
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  allowEIO3: true // For Socket.io v4 compatibility with some clients
 });
 
-// In-memory storage (for demo - consider Redis for production)
+// Your existing game logic remains the same
 const gameRooms = {};
 
-// Helper function to check for a winner
 function calculateWinner(squares) {
   const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6]           // Diagonals
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
   ];
 
   for (let i = 0; i < lines.length; i++) {
     const [a, b, c] = lines[i];
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a]; // Returns 'X' or 'O'
+      return squares[a];
     }
   }
 
   if (squares.every(square => square !== null)) {
-    return 'Draw'; // All squares filled, no winner
+    return 'Draw';
   }
 
-  return null; // No winner yet
+  return null;
 }
 
-// Helper function to generate room ID
 function generateRoomId() {
   let roomId;
   do {
     roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-  } while (gameRooms[roomId]); // Ensure unique room ID
+  } while (gameRooms[roomId]);
   return roomId;
 }
 
@@ -298,10 +306,12 @@ io.on('connection', (socket) => {
   });
 });
 
+// Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Tic Tac Toe Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    rooms: Object.keys(gameRooms).length
   });
 });
 
@@ -313,15 +323,17 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Vercel Serverless requires we listen on a port, but also export the app
-const PORT = process.env.PORT || 3001;
+// Socket.io endpoint for health check
+app.get('/socket.io/', (req, res) => {
+  res.json({ status: 'Socket.io server is running' });
+});
 
-// Only start listening if not in Vercel environment
-if (process.env.VERCEL !== '1') {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
-
-// Export for Vercel
-module.exports = app;
+// Export the server for Vercel
+module.exports = (req, res) => {
+  // Route WebSocket upgrade requests to the server
+  if (req.headers?.upgrade === 'websocket') {
+    server.emit('request', req, res);
+  } else {
+    app(req, res);
+  }
+};
